@@ -1,0 +1,55 @@
+import { api } from "./api";
+import type { AdminOrder, OrderListItem, OrderStatus, PaymentStatus } from "../orders-shared";
+
+export type OrderListResponse = {
+  orders: OrderListItem[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+};
+
+export type OrderListFilters = {
+  page?: number;
+  status?: OrderStatus | "";
+  paymentStatus?: PaymentStatus | "";
+  q?: string;
+};
+
+function filterParams(filters: OrderListFilters): URLSearchParams {
+  const params = new URLSearchParams();
+  if (filters.page) params.set("page", String(filters.page));
+  if (filters.status) params.set("status", filters.status);
+  if (filters.paymentStatus) params.set("paymentStatus", filters.paymentStatus);
+  if (filters.q) params.set("q", filters.q);
+  return params;
+}
+
+export function listOrders(filters: OrderListFilters = {}): Promise<OrderListResponse> {
+  const qs = filterParams(filters).toString();
+  return api<OrderListResponse>(`/api/orders${qs ? `?${qs}` : ""}`);
+}
+
+/** URL for the CSV export, honouring the same filters as the list (minus pagination). */
+export function exportOrdersUrl(filters: Omit<OrderListFilters, "page"> = {}): string {
+  const qs = filterParams(filters).toString();
+  return `/api/orders/export${qs ? `?${qs}` : ""}`;
+}
+
+export const getOrder = (id: string) => api<{ order: AdminOrder }>(`/api/orders/${id}`).then((r) => r.order);
+
+export const updateOrderStatus = (id: string, status: OrderStatus, note?: string) =>
+  api<{ order: AdminOrder }>(`/api/orders/${id}/status`, { method: "PATCH", body: { status, note } }).then(
+    (r) => r.order
+  );
+
+export const updateOrderPayment = (id: string, status: PaymentStatus) =>
+  api<{ order: AdminOrder }>(`/api/orders/${id}/payment`, { method: "PATCH", body: { status } }).then((r) => r.order);
+
+export const updateOrderNote = (id: string, input: { adminNote?: string; tags?: string[] }) =>
+  api<{ order: AdminOrder }>(`/api/orders/${id}/note`, { method: "PATCH", body: input }).then((r) => r.order);
+
+export type BulkStatusResult = { updated: number; skipped: string[]; notFound: string[]; total: number };
+
+export const bulkUpdateStatus = (orderIds: string[], status: OrderStatus) =>
+  api<BulkStatusResult>("/api/orders/bulk", { method: "PATCH", body: { orderIds, status } });
