@@ -147,18 +147,25 @@ async function main() {
   await connectDB();
 
   let created = 0;
-  let skipped = 0;
+  let updated = 0;
   for (const item of CATALOG) {
-    const exists = await Product.findOne({ legacyId: item.legacyId });
-    if (exists) {
-      skipped++;
+    const existing = await Product.findOne({ legacyId: item.legacyId });
+    if (existing) {
+      // Don't touch anything the admin dashboard already lets someone edit (price, stock,
+      // isComingSoon, badge, ...) — only backfill fields added to the schema after this
+      // product was first seeded, which nothing can have intentionally changed yet.
+      existing.rating = item.rating;
+      existing.reviews = item.reviews as typeof existing.reviews;
+      if (!existing.offerEndsAt && item.offerEndsAt) existing.offerEndsAt = new Date(item.offerEndsAt);
+      await existing.save();
+      updated++;
       continue;
     }
     await Product.create(item);
     created++;
   }
 
-  console.log(`✔ Seeded ${created} product(s), skipped ${skipped} already present.`);
+  console.log(`✔ Seeded ${created} new product(s), backfilled newer fields on ${updated} existing one(s).`);
 }
 
 main()
