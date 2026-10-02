@@ -29,6 +29,18 @@ export function toAdminOrder(order: OrderDoc): AdminOrder {
     },
     adminNote: order.adminNote ?? "",
     tags: order.tags ?? [],
+    refundRequest: order.refundRequest
+      ? {
+          status: order.refundRequest.status,
+          reason: order.refundRequest.reason,
+          preference: order.refundRequest.preference,
+          description: order.refundRequest.description,
+          requestedAt: order.refundRequest.requestedAt.toISOString(),
+          resolutionNote: order.refundRequest.resolutionNote,
+          refundReference: order.refundRequest.refundReference,
+          resolvedAt: order.refundRequest.resolvedAt ? order.refundRequest.resolvedAt.toISOString() : undefined,
+        }
+      : undefined,
   };
 }
 
@@ -110,5 +122,6 @@ export function toOrderListItem(order: OrderDoc): OrderListItem {
     payment: { method: order.payment.method, upiId: order.payment.upiId, utr: order.payment.utr ?? "", status: order.payment.status },
     itemCount: order.items.reduce((sum, i) => sum + i.quantity, 0),
     tags: order.tags ?? [],
+    hasRefundRequest: !!order.refundRequest && order.refundRequest.status === "requested",
   };
 }

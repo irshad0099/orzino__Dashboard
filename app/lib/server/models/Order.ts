@@ -18,6 +18,18 @@ export const ORDER_STATUSES = [
   "cancelled",
 ] as const;
 
+export const REFUND_REASONS = [
+  "damaged",
+  "wrong_item",
+  "missing_item",
+  "expired",
+  "duplicate_charge",
+  "undelivered",
+  "other",
+] as const;
+export const REFUND_PREFERENCES = ["refund", "replacement", "store_credit"] as const;
+export const REFUND_STATUSES = ["requested", "approved", "rejected", "refunded"] as const;
+
 export interface IOrder {
   orderId: string;
   invoiceNumber: string;
@@ -37,6 +49,16 @@ export interface IOrder {
   clientRequestId?: string;
   adminNote: string; // internal, admin-only (e.g. "customer called, confirmed address")
   tags: string[]; // internal, admin-only free-form labels
+  refundRequest?: {
+    status: (typeof REFUND_STATUSES)[number];
+    reason: (typeof REFUND_REASONS)[number];
+    preference: (typeof REFUND_PREFERENCES)[number];
+    description: string;
+    requestedAt: Date;
+    resolutionNote?: string; // customer-visible — set here when resolving
+    refundReference?: string; // customer-visible — UPI/bank reference once refunded
+    resolvedAt?: Date;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -104,6 +126,22 @@ const orderSchema = new Schema<IOrder>(
     clientRequestId: { type: String },
     adminNote: { type: String, default: "", maxlength: 500 },
     tags: { type: [String], default: [] },
+    refundRequest: {
+      type: new Schema(
+        {
+          status: { type: String, enum: REFUND_STATUSES, required: true, default: "requested" },
+          reason: { type: String, enum: REFUND_REASONS, required: true },
+          preference: { type: String, enum: REFUND_PREFERENCES, required: true },
+          description: { type: String, required: true, trim: true, maxlength: 1000 },
+          requestedAt: { type: Date, required: true },
+          resolutionNote: { type: String, trim: true, maxlength: 500 },
+          refundReference: { type: String, trim: true, maxlength: 100 },
+          resolvedAt: { type: Date },
+        },
+        { _id: false }
+      ),
+      required: false,
+    },
   },
   { timestamps: true }
 );

@@ -134,7 +134,7 @@ async function main() {
   await seedTestAdmin(uri, dbName);
   await seedTestOrders(uri, dbName);
   await seedTestProductsAndMessages(uri, dbName);
-  console.log(`In-memory MongoDB ready (24 orders, 3 products, 4 messages). Test admin login: ${TEST_ADMIN_EMAIL} / ${TEST_ADMIN_PASSWORD}\n`);
+  console.log(`In-memory MongoDB ready (24 orders, 3 products, 4 messages). Test admin login: ${TEST_ADMIN_EMAIL} / ${TEST_ADMIN_PASSWORD}. URI: ${uri} DB: ${dbName}\n`);
 
   const child = spawn(command, args, {
     stdio: "inherit",

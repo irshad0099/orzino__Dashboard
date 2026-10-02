@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import Link from "next/link";
-import { Download, Search, X } from "lucide-react";
+import { Download, PackageX, Search, X } from "lucide-react";
 import { useApiData } from "@/app/lib/useApiData";
 import { bulkUpdateStatus, exportOrdersUrl, listOrders } from "@/app/lib/services/orders";
 import { ORDER_STATUS_LABEL, ORDER_STATUSES, type OrderStatus } from "@/app/lib/orders-shared";
@@ -12,6 +12,7 @@ const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 export default function OrdersPage() {
   const [status, setStatus] = useState<OrderStatus | "">("");
   const [paymentStatus, setPaymentStatus] = useState<"" | "verification_pending" | "verified">("");
+  const [hasRefundRequest, setHasRefundRequest] = useState(false);
   const [qInput, setQInput] = useState("");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
@@ -20,8 +21,8 @@ export default function OrdersPage() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkMessage, setBulkMessage] = useState("");
 
-  const key = `orders-${status}-${paymentStatus}-${q}-${page}`;
-  const state = useApiData(() => listOrders({ status, paymentStatus, q, page }), key);
+  const key = `orders-${status}-${paymentStatus}-${hasRefundRequest}-${q}-${page}`;
+  const state = useApiData(() => listOrders({ status, paymentStatus, hasRefundRequest, q, page }), key);
 
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,6 +125,22 @@ export default function OrdersPage() {
           <option value="verification_pending">Payment pending</option>
           <option value="verified">Payment verified</option>
         </select>
+        <button
+          type="button"
+          onClick={() => {
+            setHasRefundRequest((v) => !v);
+            setPage(1);
+          }}
+          aria-pressed={hasRefundRequest}
+          className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold border transition-colors cursor-pointer ${
+            hasRefundRequest
+              ? "bg-[#B00B44] border-[#B00B44] text-white"
+              : "bg-white border-[#EDD9C0] text-[#5C3A1E] hover:bg-[#F5E6D0]"
+          }`}
+        >
+          <PackageX size={13} />
+          Refund requested
+        </button>
       </div>
 
       {(selected.size > 0 || bulkMessage) && (
@@ -223,7 +240,17 @@ export default function OrdersPage() {
                       aria-label={`Select ${o.id}`}
                     />
                     <Link href={`/orders/${o.id}`} className="min-w-0">
-                      <p className="text-xs font-black text-[#181410] truncate">{o.id}</p>
+                      <p className="text-xs font-black text-[#181410] truncate flex items-center gap-1.5">
+                        {o.id}
+                        {o.hasRefundRequest && (
+                          <span
+                            title="Refund requested"
+                            className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[#B00B44] text-white shrink-0"
+                          >
+                            <PackageX size={10} />
+                          </span>
+                        )}
+                      </p>
                       <p className="text-[10px] text-[#8A8179]">
                         {new Date(o.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
                       </p>

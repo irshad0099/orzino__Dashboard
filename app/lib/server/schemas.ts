@@ -57,6 +57,12 @@ export const orderNoteSchema = z.object({
   tags: z.array(z.string().trim().min(1).max(24)).max(10).optional(),
 });
 
+export const refundResolutionSchema = z.object({
+  status: z.enum(["approved", "rejected", "refunded"]),
+  resolutionNote: z.string().trim().max(500).optional(),
+  refundReference: z.string().trim().max(100).optional(),
+});
+
 export const bulkOrderStatusSchema = z.object({
   orderIds: z.array(z.string().trim().min(1)).min(1).max(200),
   status: z.enum(["placed", "payment_verified", "packed", "shipped", "delivered", "cancelled"]),

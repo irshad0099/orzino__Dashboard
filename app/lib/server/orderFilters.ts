@@ -9,12 +9,14 @@ export function buildOrderFilter(params: NextRequest["nextUrl"]["searchParams"])
   const q = params.get("q")?.trim();
   const from = params.get("from");
   const to = params.get("to");
+  const hasRefundRequest = params.get("hasRefundRequest");
 
   const filter: Record<string, unknown> = {};
   if (status && (ORDER_STATUSES as string[]).includes(status)) filter.status = status;
   if (paymentStatus === "verified" || paymentStatus === "verification_pending") {
     filter["payment.status"] = paymentStatus;
   }
+  if (hasRefundRequest) filter["refundRequest.status"] = "requested";
   if (from || to) {
     const createdAt: Record<string, Date> = {};
     if (from) createdAt.$gte = new Date(from);

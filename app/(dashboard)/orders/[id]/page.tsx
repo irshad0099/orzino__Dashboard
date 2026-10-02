@@ -2,11 +2,28 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ChevronLeft, CircleCheck, Clock, MapPin, Phone, Save, ShieldCheck, Tag, X } from "lucide-react";
+import { ChevronLeft, CircleCheck, Clock, MapPin, PackageX, Phone, Save, ShieldCheck, Tag, X } from "lucide-react";
 import { useApiData } from "@/app/lib/useApiData";
-import { getOrder, updateOrderNote, updateOrderPayment, updateOrderStatus } from "@/app/lib/services/orders";
-import { ORDER_STATUS_LABEL, NEXT_STATUSES, type OrderStatus } from "@/app/lib/orders-shared";
+import { getOrder, resolveRefundRequest, updateOrderNote, updateOrderPayment, updateOrderStatus } from "@/app/lib/services/orders";
+import {
+  ORDER_STATUS_LABEL,
+  NEXT_STATUSES,
+  NEXT_REFUND_STATUSES,
+  REFUND_PREFERENCE_LABEL,
+  REFUND_REASON_LABEL,
+  REFUND_STATUS_LABEL,
+  type AdminOrder,
+  type OrderStatus,
+  type RefundStatus,
+} from "@/app/lib/orders-shared";
 import { STATUS_COLOR } from "@/app/lib/statusColors";
+
+const REFUND_STATUS_COLOR: Record<RefundStatus, string> = {
+  requested: "#92670A",
+  approved: "#1B7A3D",
+  rejected: "#B00B44",
+  refunded: "#1B7A3D",
+};
 
 const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 const fmt = (iso: string) =>
@@ -162,6 +179,10 @@ export default function OrderDetailPage() {
             )}
           </div>
 
+          {state.data.refundRequest && (
+            <RefundCard orderId={state.data.id} refundRequest={state.data.refundRequest} onResolved={state.reload} />
+          )}
+
           <NotesCard orderId={state.data.id} initialNote={state.data.adminNote} initialTags={state.data.tags} />
 
           <div className="bg-white border border-[#EDD9C0] rounded-2xl overflow-hidden mb-4">
@@ -220,6 +241,172 @@ export default function OrderDetailPage() {
               ))}
             </div>
           </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function RefundCard({
+  orderId,
+  refundRequest,
+  onResolved,
+}: {
+  orderId: string;
+  refundRequest: AdminOrder["refundRequest"];
+  onResolved: () => void;
+}) {
+  const [pendingAction, setPendingAction] = useState<RefundStatus | null>(null);
+  const [note, setNote] = useState("");
+  const [reference, setReference] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  if (!refundRequest) return null;
+  const allowed = NEXT_REFUND_STATUSES[refundRequest.status];
+
+  const confirm = async (target: RefundStatus) => {
+    setError("");
+    setBusy(true);
+    try {
+      await resolveRefundRequest(orderId, {
+        status: target,
+        resolutionNote: note.trim() || undefined,
+        refundReference: reference.trim() || undefined,
+      });
+      setPendingAction(null);
+      setNote("");
+      setReference("");
+      onResolved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't update the refund request.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="bg-white border-2 border-[#EDD9C0] rounded-2xl p-5 mb-4">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <h2 className="text-[10px] font-black uppercase tracking-wide text-[#5C3A1E] flex items-center gap-1.5">
+          <PackageX size={12} />
+          Refund / replacement request
+        </h2>
+        <span
+          className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full text-white"
+          style={{ background: REFUND_STATUS_COLOR[refundRequest.status] }}
+        >
+          {REFUND_STATUS_LABEL[refundRequest.status]}
+        </span>
+      </div>
+
+      <dl className="text-xs space-y-1.5 mb-3">
+        <div className="flex justify-between gap-3">
+          <dt className="text-[#5C3A1E]">Reason</dt>
+          <dd className="font-bold">{REFUND_REASON_LABEL[refundRequest.reason]}</dd>
+        </div>
+        <div className="flex justify-between gap-3">
+          <dt className="text-[#5C3A1E]">Preference</dt>
+          <dd className="font-bold">{REFUND_PREFERENCE_LABEL[refundRequest.preference]}</dd>
+        </div>
+        <div className="flex justify-between gap-3">
+          <dt className="text-[#5C3A1E]">Requested</dt>
+          <dd className="font-bold">{fmt(refundRequest.requestedAt)}</dd>
+        </div>
+      </dl>
+      <p className="text-xs text-[#3D2B1F] bg-[#F5E6D0] rounded-xl p-3 mb-3">{refundRequest.description}</p>
+
+      {refundRequest.resolutionNote && (
+        <p className="text-xs text-[#5C3A1E] mb-2">
+          <strong className="text-[#181410]">Note to customer:</strong> {refundRequest.resolutionNote}
+        </p>
+      )}
+      {refundRequest.refundReference && (
+        <p className="text-xs text-[#5C3A1E] mb-2">
+          <strong className="text-[#181410]">Reference:</strong>{" "}
+          <span className="font-mono">{refundRequest.refundReference}</span>
+        </p>
+      )}
+
+      {error && <div className="bg-[#FDE8EF] text-[#B00B44] text-xs font-bold rounded-xl p-3 mb-3">{error}</div>}
+
+      {allowed.length > 0 && (
+        <>
+          {!pendingAction ? (
+            <div className="flex flex-wrap gap-2">
+              {allowed.includes("approved") && (
+                <button
+                  onClick={() => setPendingAction("approved")}
+                  className="text-xs font-black uppercase px-4 py-2 rounded-full bg-[#1B7A3D] text-white hover:bg-[#166030] cursor-pointer"
+                >
+                  Approve
+                </button>
+              )}
+              {allowed.includes("refunded") && (
+                <button
+                  onClick={() => setPendingAction("refunded")}
+                  className="text-xs font-black uppercase px-4 py-2 rounded-full bg-[#8B3A1A] text-white hover:bg-[#7A2E12] cursor-pointer"
+                >
+                  Mark refunded
+                </button>
+              )}
+              {allowed.includes("rejected") && (
+                <button
+                  onClick={() => setPendingAction("rejected")}
+                  className="text-xs font-black uppercase px-4 py-2 rounded-full bg-[#B00B44] text-white hover:bg-[#92083a] cursor-pointer"
+                >
+                  Reject
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="bg-[#FFFBEA] border border-[#FFC300]/50 rounded-xl p-3">
+              <p className="text-[10px] font-black uppercase text-[#5C3A1E] mb-2">
+                {pendingAction === "approved" && "Approve this request"}
+                {pendingAction === "rejected" && "Reject this request"}
+                {pendingAction === "refunded" && "Mark as refunded"}
+              </p>
+              {pendingAction === "refunded" && (
+                <input
+                  value={reference}
+                  onChange={(e) => setReference(e.target.value)}
+                  placeholder="UPI / bank refund reference number"
+                  className="w-full text-xs border border-[#EDD9C0] rounded-lg px-3 py-2 mb-2 focus:outline-none focus:border-[#FFC300]"
+                />
+              )}
+              {(pendingAction === "rejected" || pendingAction === "refunded" || pendingAction === "approved") && (
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder={
+                    pendingAction === "rejected"
+                      ? "Why? The customer will see this."
+                      : "Optional note the customer will see"
+                  }
+                  rows={2}
+                  className="w-full text-xs border border-[#EDD9C0] rounded-lg px-3 py-2 mb-2 resize-none focus:outline-none focus:border-[#FFC300]"
+                />
+              )}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => confirm(pendingAction)}
+                  disabled={busy}
+                  className="text-xs font-black uppercase px-4 py-1.5 rounded-full bg-[#181410] text-[#FFC300] disabled:opacity-50 cursor-pointer"
+                >
+                  {busy ? "Saving..." : "Confirm"}
+                </button>
+                <button
+                  onClick={() => {
+                    setPendingAction(null);
+                    setError("");
+                  }}
+                  className="text-xs font-bold text-[#5C3A1E] hover:text-[#181410] cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

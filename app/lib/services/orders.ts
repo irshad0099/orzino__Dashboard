@@ -1,5 +1,5 @@
 import { api } from "./api";
-import type { AdminOrder, OrderListItem, OrderStatus, PaymentStatus } from "../orders-shared";
+import type { AdminOrder, OrderListItem, OrderStatus, PaymentStatus, RefundStatus } from "../orders-shared";
 
 export type OrderListResponse = {
   orders: OrderListItem[];
@@ -14,6 +14,7 @@ export type OrderListFilters = {
   status?: OrderStatus | "";
   paymentStatus?: PaymentStatus | "";
   q?: string;
+  hasRefundRequest?: boolean;
 };
 
 function filterParams(filters: OrderListFilters): URLSearchParams {
@@ -22,6 +23,7 @@ function filterParams(filters: OrderListFilters): URLSearchParams {
   if (filters.status) params.set("status", filters.status);
   if (filters.paymentStatus) params.set("paymentStatus", filters.paymentStatus);
   if (filters.q) params.set("q", filters.q);
+  if (filters.hasRefundRequest) params.set("hasRefundRequest", "1");
   return params;
 }
 
@@ -53,3 +55,8 @@ export type BulkStatusResult = { updated: number; skipped: string[]; notFound: s
 
 export const bulkUpdateStatus = (orderIds: string[], status: OrderStatus) =>
   api<BulkStatusResult>("/api/orders/bulk", { method: "PATCH", body: { orderIds, status } });
+
+export const resolveRefundRequest = (
+  id: string,
+  input: { status: RefundStatus; resolutionNote?: string; refundReference?: string }
+) => api<{ order: AdminOrder }>(`/api/orders/${id}/refund`, { method: "PATCH", body: input }).then((r) => r.order);
