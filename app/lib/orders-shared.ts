@@ -106,6 +106,7 @@ export type AdminOrder = {
   payment: { method: "UPI" | "COD"; upiId: string; utr: string; status: PaymentStatus };
   adminNote: string;
   tags: string[];
+  shipment?: { courier: string; trackingNumber: string; trackingUrl?: string; shippedAt: string };
   refundRequest?: RefundRequest;
 };
 

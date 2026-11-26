@@ -38,10 +38,19 @@ export function exportOrdersUrl(filters: Omit<OrderListFilters, "page"> = {}): s
   return `/api/orders/export${qs ? `?${qs}` : ""}`;
 }
 
+/** Shipping labels (4x6in, one page per order) for one or more orders. */
+export const labelsPdfUrl = (orderIds: string[]) =>
+  `/api/orders/labels?ids=${encodeURIComponent(orderIds.join(","))}`;
+
+/** Tax invoice PDF for one order. */
+export const invoicePdfUrl = (orderId: string) => `/api/orders/${encodeURIComponent(orderId)}/invoice`;
+
 export const getOrder = (id: string) => api<{ order: AdminOrder }>(`/api/orders/${id}`).then((r) => r.order);
 
-export const updateOrderStatus = (id: string, status: OrderStatus, note?: string) =>
-  api<{ order: AdminOrder }>(`/api/orders/${id}/status`, { method: "PATCH", body: { status, note } }).then(
+export type ShipmentInput = { courier: string; trackingNumber: string; trackingUrl?: string };
+
+export const updateOrderStatus = (id: string, status: OrderStatus, note?: string, shipment?: ShipmentInput) =>
+  api<{ order: AdminOrder }>(`/api/orders/${id}/status`, { method: "PATCH", body: { status, note, shipment } }).then(
     (r) => r.order
   );
 

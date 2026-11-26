@@ -1,9 +1,9 @@
 "use client";
 import React, { useState } from "react";
 import Link from "next/link";
-import { Download, PackageX, Search, X } from "lucide-react";
+import { Download, PackageX, Printer, Search, X } from "lucide-react";
 import { useApiData } from "@/app/lib/useApiData";
-import { bulkUpdateStatus, exportOrdersUrl, listOrders } from "@/app/lib/services/orders";
+import { bulkUpdateStatus, exportOrdersUrl, labelsPdfUrl, listOrders } from "@/app/lib/services/orders";
 import { ORDER_STATUS_LABEL, ORDER_STATUSES, type OrderStatus } from "@/app/lib/orders-shared";
 import { STATUS_COLOR } from "@/app/lib/statusColors";
 
@@ -154,7 +154,8 @@ export default function OrdersPage() {
                 className="bg-white/10 border border-white/20 rounded-full px-3 py-1.5 text-xs font-bold focus:outline-none"
               >
                 <option value="">Set status to...</option>
-                {ORDER_STATUSES.map((s) => (
+                {/* "Shipped" needs a courier + tracking number per order, so it's set on each order's page. */}
+                {ORDER_STATUSES.filter((s) => s !== "shipped").map((s) => (
                   <option key={s} value={s} className="text-[#181410]">
                     {ORDER_STATUS_LABEL[s]}
                   </option>
@@ -167,6 +168,15 @@ export default function OrdersPage() {
               >
                 {bulkBusy ? "Applying..." : "Apply"}
               </button>
+              <a
+                href={labelsPdfUrl([...selected])}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs font-black uppercase px-4 py-1.5 rounded-full bg-white text-[#181410] hover:bg-[#F5E6D0]"
+              >
+                <Printer size={13} />
+                Print labels
+              </a>
               <button
                 onClick={() => setSelected(new Set())}
                 className="text-xs font-bold text-white/60 hover:text-white cursor-pointer ml-1"

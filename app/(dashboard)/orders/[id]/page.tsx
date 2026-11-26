@@ -2,9 +2,18 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ChevronLeft, CircleCheck, Clock, MapPin, PackageX, Phone, Save, ShieldCheck, Tag, X } from "lucide-react";
+import { ChevronLeft, CircleCheck, Clock, FileText, MapPin, PackageX, Phone, Printer, Save, ShieldCheck, Tag, Truck, X } from "lucide-react";
 import { useApiData } from "@/app/lib/useApiData";
-import { getOrder, resolveRefundRequest, updateOrderNote, updateOrderPayment, updateOrderStatus } from "@/app/lib/services/orders";
+import {
+  getOrder,
+  invoicePdfUrl,
+  labelsPdfUrl,
+  resolveRefundRequest,
+  updateOrderNote,
+  updateOrderPayment,
+  updateOrderStatus,
+  type ShipmentInput,
+} from "@/app/lib/services/orders";
 import {
   ORDER_STATUS_LABEL,
   NEXT_STATUSES,
@@ -34,12 +43,19 @@ export default function OrderDetailPage() {
   const state = useApiData(() => getOrder(params.id), `order-${params.id}`);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [shipFormOpen, setShipFormOpen] = useState(false);
 
-  const setStatus = async (status: OrderStatus) => {
+  const setStatus = async (status: OrderStatus, shipment?: ShipmentInput) => {
+    // Shipping needs the courier + tracking number first (it goes into the customer's email).
+    if (status === "shipped" && !shipment) {
+      setShipFormOpen(true);
+      return;
+    }
     setActionError("");
     setBusy(true);
     try {
-      await updateOrderStatus(params.id, status);
+      await updateOrderStatus(params.id, status, undefined, shipment);
+      setShipFormOpen(false);
       state.reload();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Couldn't update the status.");
@@ -88,12 +104,32 @@ export default function OrderDetailPage() {
                 Invoice {state.data.invoiceNumber} &middot; {fmt(state.data.createdAt)}
               </p>
             </div>
-            <span
-              className="text-[10px] font-black uppercase px-3 py-1.5 rounded-full text-white"
-              style={{ background: STATUS_COLOR[state.data.status] }}
-            >
-              {ORDER_STATUS_LABEL[state.data.status]}
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <a
+                href={invoicePdfUrl(state.data.id)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs font-black uppercase px-3 py-1.5 rounded-full border border-[#D4B896] bg-white text-[#5C3A1E] hover:bg-[#F5E6D0]"
+              >
+                <FileText size={13} />
+                Invoice PDF
+              </a>
+              <a
+                href={labelsPdfUrl([state.data.id])}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs font-black uppercase px-3 py-1.5 rounded-full border border-[#D4B896] bg-white text-[#5C3A1E] hover:bg-[#F5E6D0]"
+              >
+                <Printer size={13} />
+                Shipping label
+              </a>
+              <span
+                className="text-[10px] font-black uppercase px-3 py-1.5 rounded-full text-white"
+                style={{ background: STATUS_COLOR[state.data.status] }}
+              >
+                {ORDER_STATUS_LABEL[state.data.status]}
+              </span>
+            </div>
           </div>
 
           {actionError && (
@@ -177,7 +213,47 @@ export default function OrderDetailPage() {
                 ))}
               </div>
             )}
+            {shipFormOpen && (
+              <ShipmentForm
+                busy={busy}
+                initial={state.data.shipment}
+                onCancel={() => setShipFormOpen(false)}
+                onSubmit={(shipment) => setStatus("shipped", shipment)}
+              />
+            )}
           </div>
+
+          {state.data.shipment && (
+            <div className="bg-white border border-[#EDD9C0] rounded-2xl p-5 mb-4">
+              <h2 className="text-[10px] font-black uppercase tracking-wide text-[#5C3A1E] mb-3 flex items-center gap-1.5">
+                <Truck size={12} />
+                Shipment
+              </h2>
+              <p className="text-xs text-[#5C3A1E]">
+                <strong className="text-[#181410]">{state.data.shipment.courier}</strong> &middot; AWB{" "}
+                <span className="font-mono font-bold text-[#181410]">{state.data.shipment.trackingNumber}</span> &middot;
+                shipped {fmt(state.data.shipment.shippedAt)}
+              </p>
+              {state.data.shipment.trackingUrl && (
+                <a
+                  href={state.data.shipment.trackingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block mt-1 text-xs font-bold text-[#1B7A3D] hover:underline break-all"
+                >
+                  {state.data.shipment.trackingUrl}
+                </a>
+              )}
+              {state.data.status === "shipped" && !shipFormOpen && (
+                <button
+                  onClick={() => setShipFormOpen(true)}
+                  className="block mt-2 text-[11px] font-bold text-[#5C3A1E] underline cursor-pointer"
+                >
+                  Edit tracking details
+                </button>
+              )}
+            </div>
+          )}
 
           {state.data.refundRequest && (
             <RefundCard orderId={state.data.id} refundRequest={state.data.refundRequest} onResolved={state.reload} />
@@ -244,6 +320,80 @@ export default function OrderDetailPage() {
         </>
       )}
     </div>
+  );
+}
+
+function ShipmentForm({
+  busy,
+  initial,
+  onCancel,
+  onSubmit,
+}: {
+  busy: boolean;
+  initial?: ShipmentInput;
+  onCancel: () => void;
+  onSubmit: (shipment: ShipmentInput) => void;
+}) {
+  const [courier, setCourier] = useState(initial?.courier ?? "");
+  const [trackingNumber, setTrackingNumber] = useState(initial?.trackingNumber ?? "");
+  const [trackingUrl, setTrackingUrl] = useState(initial?.trackingUrl ?? "");
+  const input = "w-full text-xs border border-[#EDD9C0] rounded-lg px-3 py-2 focus:outline-none focus:border-[#FFC300] bg-white";
+  const valid = courier.trim().length >= 2 && trackingNumber.trim().length >= 3;
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (valid) {
+          onSubmit({ courier: courier.trim(), trackingNumber: trackingNumber.trim(), trackingUrl: trackingUrl.trim() });
+        }
+      }}
+      className="mt-3 bg-[#FFFBEA] border border-[#FFC300]/50 rounded-xl p-3 space-y-2"
+    >
+      <p className="text-[10px] font-black uppercase text-[#5C3A1E]">
+        Dispatch details — the customer gets these by email
+      </p>
+      <input
+        value={courier}
+        onChange={(e) => setCourier(e.target.value)}
+        placeholder="Courier (e.g. Delhivery, Shiprocket, India Post)"
+        list="courier-options"
+        className={input}
+        required
+      />
+      <datalist id="courier-options">
+        {["Delhivery", "Shiprocket", "Blue Dart", "DTDC", "Xpressbees", "Ecom Express", "India Post"].map((c) => (
+          <option key={c} value={c} />
+        ))}
+      </datalist>
+      <input
+        value={trackingNumber}
+        onChange={(e) => setTrackingNumber(e.target.value)}
+        placeholder="Tracking / AWB number"
+        className={`${input} font-mono`}
+        required
+      />
+      <input
+        value={trackingUrl}
+        onChange={(e) => setTrackingUrl(e.target.value)}
+        placeholder="Tracking link (optional) — https://..."
+        type="url"
+        className={input}
+      />
+      <div className="flex items-center gap-2">
+        <button
+          type="submit"
+          disabled={!valid || busy}
+          className="flex items-center gap-1.5 text-xs font-black uppercase px-4 py-1.5 rounded-full bg-[#181410] text-[#FFC300] disabled:opacity-50 cursor-pointer"
+        >
+          <Truck size={12} />
+          {busy ? "Saving..." : initial ? "Save tracking" : "Mark shipped & email customer"}
+        </button>
+        <button type="button" onClick={onCancel} className="text-xs font-bold text-[#5C3A1E] hover:text-[#181410] cursor-pointer">
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
 

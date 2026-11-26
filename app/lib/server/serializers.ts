@@ -29,6 +29,14 @@ export function toAdminOrder(order: OrderDoc): AdminOrder {
     },
     adminNote: order.adminNote ?? "",
     tags: order.tags ?? [],
+    shipment: order.shipment
+      ? {
+          courier: order.shipment.courier,
+          trackingNumber: order.shipment.trackingNumber,
+          trackingUrl: order.shipment.trackingUrl || undefined,
+          shippedAt: order.shipment.shippedAt.toISOString(),
+        }
+      : undefined,
     refundRequest: order.refundRequest
       ? {
           status: order.refundRequest.status,

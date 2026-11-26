@@ -7,10 +7,29 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Enter your password.").max(200),
 });
 
-export const orderStatusSchema = z.object({
-  status: z.enum(["placed", "payment_verified", "packed", "shipped", "delivered", "cancelled"]),
-  note: z.string().trim().max(200).optional(),
+export const shipmentSchema = z.object({
+  courier: z.string().trim().min(2, "Enter the courier name.").max(60),
+  trackingNumber: z.string().trim().min(3, "Enter the tracking / AWB number.").max(60),
+  trackingUrl: z
+    .string()
+    .trim()
+    .max(300)
+    .refine((v) => v === "" || /^https?:\/\/\S+$/i.test(v), "Tracking link must start with http:// or https://")
+    .optional()
+    .default(""),
 });
+
+export const orderStatusSchema = z
+  .object({
+    status: z.enum(["placed", "payment_verified", "packed", "shipped", "delivered", "cancelled"]),
+    note: z.string().trim().max(200).optional(),
+    // Required when marking an order "shipped" — it is what the customer's tracking email shows.
+    shipment: shipmentSchema.optional(),
+  })
+  .refine((v) => v.status !== "shipped" || v.shipment, {
+    message: "Add the courier and tracking number to mark this order shipped.",
+    path: ["shipment"],
+  });
 
 export const orderPaymentSchema = z.object({
   status: z.enum(["verified", "verification_pending"]),

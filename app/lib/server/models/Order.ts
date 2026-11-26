@@ -49,6 +49,8 @@ export interface IOrder {
   clientRequestId?: string;
   adminNote: string; // internal, admin-only (e.g. "customer called, confirmed address")
   tags: string[]; // internal, admin-only free-form labels
+  // Written here when the order is marked "shipped"; the customer sees it on their order page.
+  shipment?: { courier: string; trackingNumber: string; trackingUrl?: string; shippedAt: Date };
   refundRequest?: {
     status: (typeof REFUND_STATUSES)[number];
     reason: (typeof REFUND_REASONS)[number];
@@ -126,6 +128,18 @@ const orderSchema = new Schema<IOrder>(
     clientRequestId: { type: String },
     adminNote: { type: String, default: "", maxlength: 500 },
     tags: { type: [String], default: [] },
+    shipment: {
+      type: new Schema(
+        {
+          courier: { type: String, required: true, trim: true, maxlength: 60 },
+          trackingNumber: { type: String, required: true, trim: true, maxlength: 60 },
+          trackingUrl: { type: String, trim: true, maxlength: 300 },
+          shippedAt: { type: Date, required: true },
+        },
+        { _id: false }
+      ),
+      required: false,
+    },
     refundRequest: {
       type: new Schema(
         {
