@@ -11,7 +11,8 @@
     "dev:memory": "tsx scripts/with-memory-db.ts next dev",
     "start:memory": "tsx scripts/with-memory-db.ts next start",
     "create-admin": "tsx --env-file=.env.local scripts/create-admin.ts",
-    "seed-products": "tsx --env-file=.env.local scripts/seed-products.ts"
+    "seed-products": "tsx --env-file=.env.local scripts/seed-products.ts",
+    "fix-pack-weight": "tsx --env-file=.env.local scripts/fix-pack-weight.ts"
   },
   "dependencies": {
     "@vercel/blob": "^2.8.0",
