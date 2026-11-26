@@ -143,6 +143,36 @@ async function seedTestProductsAndMessages(uri: string, dbName: string) {
     } as unknown as Record<string, unknown>);
     if (u.orders.length) await Order.updateMany({ orderId: { $in: u.orders } }, { $set: { userId: user._id } });
   }
+
+  // Sample verified-buyer reviews + shopper questions (normally created on the storefront).
+  const Review = conn.model<Record<string, unknown>>(
+    "Review",
+    new mongoose.Schema({}, { strict: false, timestamps: true, collection: "reviews" })
+  );
+  const Question = conn.model<Record<string, unknown>>(
+    "ProductQuestion",
+    new mongoose.Schema({}, { strict: false, timestamps: true, collection: "productquestions" })
+  );
+  const REVIEWS = [
+    { productId: 1, orderId: "ORZ-TEST004", authorName: "Vikram R.", rating: 5, comment: "Super crunchy, tastes like real pineapple!" },
+    { productId: 1, orderId: "ORZ-TEST005", authorName: "Pooja I.", rating: 4, comment: "Loved it, wish the pack was bigger." },
+    { productId: 2, orderId: "ORZ-TEST011", authorName: "Riya V.", rating: 2, comment: "Arrived a bit soft this time." },
+  ];
+  for (const r of REVIEWS) {
+    await Review.create({ ...r, userId: null, media: [], status: "published" } as unknown as Record<string, unknown>);
+  }
+  await Product.updateOne({ legacyId: 1 }, { $set: { rating: 4.5, reviewCount: 2 } });
+  await Product.updateOne({ legacyId: 2 }, { $set: { rating: 2, reviewCount: 1 } });
+  await Question.create({
+    productId: 2,
+    userId: null,
+    name: "Amit Joshi",
+    email: "amit@example.com",
+    question: "Is this suitable for a 3 year old?",
+    answer: "",
+    answeredAt: null,
+    status: "pending",
+  } as unknown as Record<string, unknown>);
   await conn.close();
 }
 

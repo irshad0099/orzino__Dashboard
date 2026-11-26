@@ -95,4 +95,19 @@ export const bulkProductPriceSchema = z.object({
   adjustMrp: z.boolean().optional().default(false),
 });
 
+export const reviewStatusSchema = z.object({
+  status: z.enum(["published", "hidden"]),
+});
+
+export const questionUpdateSchema = z
+  .object({
+    answer: z.string().trim().max(1000).optional(),
+    status: z.enum(["pending", "answered", "hidden"]).optional(),
+  })
+  .refine((v) => v.answer !== undefined || v.status !== undefined, { message: "Nothing to update." })
+  .refine((v) => v.status !== "answered" || (v.answer ?? "").length >= 2, {
+    message: "Write an answer first.",
+    path: ["answer"],
+  });
+
 export type LoginInput = z.infer<typeof loginSchema>;

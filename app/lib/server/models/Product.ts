@@ -26,6 +26,7 @@ export interface IProduct {
   price: number;
   originalPrice: number;
   rating: number;
+  reviewCount?: number;
   weight: string;
   stock: number;
   badge: string;
@@ -60,7 +61,10 @@ const productSchema = new Schema<IProduct>(
     description: { type: String, required: true, trim: true, maxlength: 1000 },
     price: { type: Number, required: true, min: 0 },
     originalPrice: { type: Number, required: true, min: 0 },
+    // Average of PUBLISHED verified-buyer reviews (Review collection) + how many there are.
+    // Recomputed whenever a review is posted (storefront) or hidden/re-published (here).
     rating: { type: Number, default: 4.8, min: 0, max: 5 },
+    reviewCount: { type: Number, default: 0 },
     weight: { type: String, required: true, trim: true, maxlength: 20 },
     stock: { type: Number, required: true, min: 0, default: 8 },
     badge: { type: String, default: "", trim: true, maxlength: 30 },

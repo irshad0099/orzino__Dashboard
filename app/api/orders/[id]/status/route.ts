@@ -5,7 +5,8 @@ import { requireAdmin } from "@/app/lib/server/auth";
 import { Order } from "@/app/lib/server/models/Order";
 import { orderStatusSchema } from "@/app/lib/server/schemas";
 import { toAdminOrder } from "@/app/lib/server/serializers";
-import { sendShippedEmail } from "@/app/lib/server/orderEmails";
+import { sendReviewRequestEmail, sendShippedEmail } from "@/app/lib/server/orderEmails";
+import { createReviewToken } from "@/app/lib/server/reviews";
 import { normalizeOrderId, NEXT_STATUSES } from "@/app/lib/orders-shared";
 
 export const PATCH = handle(async (req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
@@ -27,6 +28,7 @@ export const PATCH = handle(async (req: NextRequest, ctx: { params: Promise<{ id
   }
 
   const nowShipped = status === "shipped" && order.status !== "shipped";
+  const nowDelivered = status === "delivered" && order.status !== "delivered";
 
   if (status !== order.status) {
     order.status = status;
@@ -47,6 +49,12 @@ export const PATCH = handle(async (req: NextRequest, ctx: { params: Promise<{ id
   if (nowShipped) {
     const snapshot = order.toObject();
     after(() => sendShippedEmail(snapshot));
+  }
+
+  // "How was your order?" with a no-sign-in review link (verified buyer = this delivered order).
+  if (nowDelivered) {
+    const snapshot = order.toObject();
+    after(() => sendReviewRequestEmail(snapshot, createReviewToken(snapshot.orderId)));
   }
 
   return json({ order: toAdminOrder(order) });

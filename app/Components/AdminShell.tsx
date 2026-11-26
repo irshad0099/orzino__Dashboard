@@ -12,6 +12,8 @@ import {
   Map,
   Menu,
   MessageSquare,
+  MessageCircleQuestion,
+  Star,
   Package,
   Settings,
   Users,
@@ -25,6 +27,8 @@ const NAV = [
   { href: "/orders/map", label: "Heatmap", icon: Map },
   { href: "/products", label: "Products", icon: Package },
   { href: "/customers", label: "Customers", icon: Users },
+  { href: "/reviews", label: "Reviews", icon: Star },
+  { href: "/questions", label: "Questions", icon: MessageCircleQuestion },
   { href: "/messages", label: "Messages", icon: MessageSquare },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;

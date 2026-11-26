@@ -154,8 +154,8 @@ async function main() {
       // Don't touch anything the admin dashboard already lets someone edit (price, stock,
       // isComingSoon, badge, ...) — only backfill fields added to the schema after this
       // product was first seeded, which nothing can have intentionally changed yet.
-      existing.rating = item.rating;
-      existing.reviews = item.reviews as typeof existing.reviews;
+      // rating/reviews are NOT touched any more: ratings now come from real verified-buyer
+      // reviews (Review collection) and re-running this must never overwrite them.
       if (!existing.offerEndsAt && item.offerEndsAt) existing.offerEndsAt = new Date(item.offerEndsAt);
       await existing.save();
       updated++;

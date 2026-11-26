@@ -71,3 +71,74 @@ export async function sendShippedEmail(order: ShippedOrder): Promise<void> {
 
   await sendEmail({ to: order.customer.email, subject: `Shipped — your ORZINO order ${order.orderId}`, html, text });
 }
+
+/* ---------------------------------------------------------- review request */
+
+type DeliveredOrder = Pick<IOrder, "orderId" | "customer" | "items">;
+
+/**
+ * "How was your order?" — sent when an order is marked delivered. With REVIEW_LINK_SECRET set,
+ * the button opens /review?t=… where the customer can rate every product in the order (with
+ * photos/videos) without signing in; otherwise it links to each product's reviews section.
+ */
+export async function sendReviewRequestEmail(order: DeliveredOrder, reviewToken: string | null): Promise<void> {
+  if (!order.customer.email) return;
+  const firstName = order.customer.name.split(" ")[0] || "there";
+  const products = [...new Map(order.items.map((i) => [i.productId, i])).values()];
+  const reviewLink = reviewToken ? `${siteUrl()}/review?t=${encodeURIComponent(reviewToken)}` : null;
+
+  const productLinks = products
+    .map((i) => {
+      const href = reviewLink ?? `${siteUrl()}/products/${i.productId}#reviews`;
+      return `<tr><td style="padding:8px 0;border-bottom:1px solid #EDD9C0">${esc(i.name)}</td>
+        <td style="padding:8px 0;border-bottom:1px solid #EDD9C0;text-align:right">
+          <a href="${href}" style="color:#F5A300;text-decoration:none;font-size:18px;letter-spacing:2px">★★★★★</a>
+        </td></tr>`;
+    })
+    .join("");
+
+  const html = emailLayout(
+    `How was your ORZINO order, ${esc(firstName)}?`,
+    `<p style="margin:0 0 12px">Your order <b style="font-family:monospace">${esc(order.orderId)}</b> was delivered. We'd love to know what you thought — it takes 30 seconds and helps other snackers choose.</p>
+     <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#181410;margin:0 0 16px">${productLinks}</table>
+     <a href="${reviewLink ?? `${siteUrl()}/products/${products[0]?.productId ?? ""}#reviews`}" style="display:inline-block;background:#8B3A1A;color:#FFFFFF;text-decoration:none;font-weight:800;padding:12px 22px;border-radius:999px">Rate your order</a>
+     <p style="margin:12px 0 0;color:#8A8179;font-size:12px">You can add photos or a short video too.${
+       reviewLink ? "" : " You'll be asked to sign in with the account you ordered from."
+     }</p>`
+  );
+
+  const text = [
+    `How was your ORZINO order ${order.orderId}, ${firstName}?`,
+    ...products.map((i) => `- ${i.name}`),
+    `Rate it here: ${reviewLink ?? `${siteUrl()}/products/${products[0]?.productId ?? ""}#reviews`}`,
+  ].join("\n");
+
+  await sendEmail({ to: order.customer.email, subject: `How was your order? Rate it in 30 seconds`, html, text });
+}
+
+/* ------------------------------------------------------- question answered */
+
+export async function sendQuestionAnsweredEmail(q: {
+  productId: number;
+  productName: string;
+  name: string;
+  email: string;
+  question: string;
+  answer: string;
+}): Promise<void> {
+  const link = `${siteUrl()}/products/${q.productId}#questions`;
+  const html = emailLayout(
+    `We answered your question, ${esc(q.name.split(" ")[0] || "there")}`,
+    `<p style="margin:0 0 6px;color:#5C3A1E">About <b>${esc(q.productName)}</b>, you asked:</p>
+     <p style="margin:0 0 12px;background:#FFF8F0;padding:12px;border-radius:10px">${esc(q.question)}</p>
+     <p style="margin:0 0 6px;color:#5C3A1E">Our answer:</p>
+     <p style="margin:0 0 16px;background:#DFF3E4;padding:12px;border-radius:10px">${esc(q.answer)}</p>
+     <a href="${link}" style="display:inline-block;background:#8B3A1A;color:#FFFFFF;text-decoration:none;font-weight:800;padding:12px 22px;border-radius:999px">View on the product page</a>`
+  );
+  await sendEmail({
+    to: q.email,
+    subject: `Your question about ${q.productName} was answered`,
+    html,
+    text: `You asked about ${q.productName}: ${q.question}\n\nOur answer: ${q.answer}\n\n${link}`,
+  });
+}
