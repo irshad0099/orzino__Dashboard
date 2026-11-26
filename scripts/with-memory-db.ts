@@ -116,6 +116,33 @@ async function seedTestProductsAndMessages(uri: string, dbName: string) {
   );
   for (const p of SAMPLE_PRODUCTS) await Product.create(p as unknown as Record<string, unknown>);
   for (const m of SAMPLE_MESSAGES) await Contact.create(m as unknown as Record<string, unknown>);
+
+  // Registered customers (normally created by the storefront's sign-up), each linked to a few
+  // of the seeded orders so the Customers page shows order counts / spend.
+  const User = conn.model<Record<string, unknown>>(
+    "User",
+    new mongoose.Schema({}, { strict: false, timestamps: true, collection: "users" })
+  );
+  const Order = conn.model<Record<string, unknown>>(
+    "Order",
+    new mongoose.Schema({}, { strict: false, timestamps: true, collection: "orders" })
+  );
+  const SAMPLE_USERS = [
+    { name: "Riya Verma", phone: "9811111101", email: "riya@example.com", orders: ["ORZ-TEST000", "ORZ-TEST006"] },
+    { name: "Karan Mehta", phone: "9811111102", email: "karan@example.com", orders: ["ORZ-TEST001"] },
+    { name: "Fatima Khan", phone: "9811111103", email: "fatima@example.com", orders: [] },
+  ];
+  for (const u of SAMPLE_USERS) {
+    const user = await User.create({
+      name: u.name,
+      phone: u.phone,
+      email: u.email,
+      passwordHash: "x",
+      tokenVersion: 0,
+      addresses: [{ label: "Home", name: u.name, phone: u.phone, address: ADDRESSES[0], isDefault: true }],
+    } as unknown as Record<string, unknown>);
+    if (u.orders.length) await Order.updateMany({ orderId: { $in: u.orders } }, { $set: { userId: user._id } });
+  }
   await conn.close();
 }
 

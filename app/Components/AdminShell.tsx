@@ -14,6 +14,7 @@ import {
   MessageSquare,
   Package,
   Settings,
+  Users,
   X,
 } from "lucide-react";
 import { logout } from "../lib/services/auth";
@@ -23,6 +24,7 @@ const NAV = [
   { href: "/orders", label: "Orders", icon: ListOrdered },
   { href: "/orders/map", label: "Heatmap", icon: Map },
   { href: "/products", label: "Products", icon: Package },
+  { href: "/customers", label: "Customers", icon: Users },
   { href: "/messages", label: "Messages", icon: MessageSquare },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;

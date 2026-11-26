@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Download, PackageX, Printer, Search, X } from "lucide-react";
 import { useApiData } from "@/app/lib/useApiData";
@@ -20,6 +20,17 @@ export default function OrdersPage() {
   const [bulkTarget, setBulkTarget] = useState<OrderStatus | "">("");
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkMessage, setBulkMessage] = useState("");
+
+  // Deep link: /orders?q=9876543210 (e.g. "View their orders" on the Customers page).
+  useEffect(() => {
+    const initial = new URLSearchParams(window.location.search).get("q")?.trim();
+    if (!initial) return;
+    const t = setTimeout(() => {
+      setQInput(initial);
+      setQ(initial);
+    }, 0);
+    return () => clearTimeout(t);
+  }, []);
 
   const key = `orders-${status}-${paymentStatus}-${hasRefundRequest}-${q}-${page}`;
   const state = useApiData(() => listOrders({ status, paymentStatus, hasRefundRequest, q, page }), key);
